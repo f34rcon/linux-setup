@@ -1,0 +1,11 @@
+[Unit]
+Description=Restore onboard microphone capture gain
+After=wireplumber.service
+PartOf=wireplumber.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash -c 'sleep 3; exec /usr/bin/amixer -c Generic_1 set Capture 57'
+
+[Install]
+WantedBy=wireplumber.service

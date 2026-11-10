@@ -69,3 +69,25 @@ Excluded:
 ## License
 
 The Hyprland Dock retains its original included license. Other personal configuration and scripts are provided as-is.
+
+### Onboard Microphone Gain Persistence
+
+Preserves onboard Realtek ALC897 microphone hardware gain across boots and WirePlumber restarts.
+
+- `systemd/alsa-restore.service.d/no-shutdown-overwrite.conf` saves the onboard ALSA card using its stable ID, `Generic_1`.
+- `systemd/user/restore-mic-gain.service` reapplies Capture gain 57 (+25.50 dB) after WirePlumber starts or restarts.
+- Rear Mic Boost remains at +20.00 dB.
+
+#### Installation
+
+Install the system override:
+`sudo install -Dm644 systemd/alsa-restore.service.d/no-shutdown-overwrite.conf /etc/systemd/system/alsa-restore.service.d/no-shutdown-overwrite.conf`
+`sudo systemctl daemon-reload`
+
+Install the user service:
+`mkdir -p ~/.config/systemd/user`
+`install -Dm644 systemd/user/restore-mic-gain.service ~/.config/systemd/user/restore-mic-gain.service`
+`systemctl --user daemon-reload`
+`systemctl --user enable restore-mic-gain.service`
+
+The local ALSA state file `/var/lib/alsa/asound.state` is intentionally excluded from Git.
