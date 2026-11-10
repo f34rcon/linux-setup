@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+
+MENU_STYLE='window { width: 220px; } mainbox { children: [listview]; padding: 4px; } listview { lines: 5; fixed-height: false; scrollbar: false; } element { height: 38px; padding: 6px 10px; border-radius: 7px; }
+element selected {
+    background-image: linear-gradient(to right, rgba(40,120,210,35%), rgba(0,210,220,18%));
+    border: 1px solid;
+    border-color: rgba(90,190,255,45%);
+    text-color: #ffffff;
+}'
+
+CONFIRM_STYLE='window { width: 220px; } mainbox { children: [listview]; padding: 4px; } listview { lines: 2; fixed-height: false; scrollbar: false; } element { height: 38px; padding: 6px 10px; border-radius: 7px; }
+element selected {
+    background-image: linear-gradient(to right, rgba(40,120,210,35%), rgba(0,210,220,18%));
+    border: 1px solid;
+    border-color: rgba(90,190,255,45%);
+    text-color: #ffffff;
+}'
+
+MENU_POSITION=(-location 1 -xoffset 10 -yoffset 48 -hover-select -me-select-entry "" -me-accept-entry MousePrimary)
+
+choice=$(printf '%s\n' \
+    '󰌾   Lock' \
+    '󰍃   Log out' \
+    '󰐥   Power off' \
+    '󰒲   Sleep' \
+    '󰜉   Restart' |
+    rofi -dmenu -i -no-custom "${MENU_POSITION[@]}" \
+    -theme-str "$MENU_STYLE")
+
+[ -z "$choice" ] && exit 0
+
+confirm() {
+    result=$(printf '%s\n' 'Cancel' "$1" |
+        rofi -dmenu -i -no-custom "${MENU_POSITION[@]}" \
+        -theme-str "$CONFIRM_STYLE")
+    [ "$result" = "$1" ]
+}
+
+case "$choice" in
+    *Lock)
+        hyprlock
+        ;;
+    *"Log out")
+        hyprctl dispatch exit
+        ;;
+    *"Power off")
+        if confirm "Power off"; then
+            systemctl poweroff
+        fi
+        ;;
+    *Sleep)
+        systemctl suspend
+        ;;
+    *Restart)
+        if confirm "Restart"; then
+            systemctl reboot
+        fi
+        ;;
+esac

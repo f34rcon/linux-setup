@@ -1,0 +1,22 @@
+{
+  "iconSize": 48,
+  "magnification": 1.2,
+  "magnificationRadius": 110,
+  "margin": 10,
+  "backgroundOpacity": 0.8,
+  "position": "bottom",
+  "fullLength": false,
+  "reserveSpace": true,
+  "autoHide": false,
+  "clickAction": "focus-or-launch",
+  "pinned": [
+    "org.kde.dolphin",
+    "launchpad",
+    "brave-browser",
+    "steam",
+    "discord",
+    "kitty",
+    "brave-fmpnliohjhemenmnlpbfagaolkdacoja-Default",
+    "dock-trash"
+  ]
+}

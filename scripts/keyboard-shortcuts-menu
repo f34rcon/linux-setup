@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+
+MENU_STYLE='
+window {
+    width: 440px;
+    border-radius: 11px;
+}
+mainbox {
+    children: [inputbar, listview];
+    padding: 10px;
+    spacing: 8px;
+}
+inputbar {
+    padding: 8px;
+}
+listview {
+    lines: 18;
+    fixed-height: false;
+    scrollbar: false;
+    spacing: 3px;
+}
+element {
+    height: 38px;
+    padding: 6px 10px;
+    border-radius: 7px;
+}
+element selected {
+    background-image: linear-gradient(to right, rgba(40,120,210,35%), rgba(0,210,220,18%));
+    border: 1px solid;
+    border-color: rgba(90,190,255,45%);
+    text-color: #ffffff;
+}
+'
+
+choice=$(printf '%s\n' \
+    'SUPER + SPACE       Applications menu' \
+    'SUPER + Q            Open terminal' \
+    'SUPER + E            File manager' \
+    'SUPER + I             System Settings' \
+    'SUPER + R            Hyprlauncher' \
+    'SUPER + M           Session / power menu' \
+    'SUPER + F            Toggle fullscreen' \
+    'SUPER + T            Toggle floating (workspace)' \
+    'SUPER + V            Toggle floating (active window)' \
+    'SUPER + C            Close active window' \
+    'ALT + F4              Close active window' \
+    'SUPER + P            Toggle pseudo tiling' \
+    'SUPER + J            Toggle split layout' \
+    'SUPER + LEFT         Focus left' \
+    'SUPER + RIGHT       Focus right' \
+    'SUPER + UP            Focus up' \
+    'SUPER + DOWN       Focus down' \
+    'SUPER + S            Toggle special workspace' \
+    'SUPER + SHIFT + X   Move window to special workspace' \
+    'SUPER + SHIFT + S   Screenshot selection' \
+    'SUPER + 1             Switch to workspace 1' \
+    'SUPER + 2             Switch to workspace 2' \
+    'SUPER + 3             Switch to workspace 3' \
+    'SUPER + 4             Switch to workspace 4' \
+    'SUPER + 5             Switch to workspace 5' \
+    'SUPER + 6             Switch to workspace 6' \
+    'SUPER + 7             Switch to workspace 7' \
+    'SUPER + 8             Switch to workspace 8' \
+    'SUPER + 9             Switch to workspace 9' \
+    'SUPER + SHIFT + 1   Move window to workspace 1' \
+    'SUPER + SHIFT + 2   Move window to workspace 2' \
+    'SUPER + SHIFT + 3   Move window to workspace 3' \
+    'SUPER + SHIFT + 4   Move window to workspace 4' \
+    'SUPER + SHIFT + 5   Move window to workspace 5' \
+    'SUPER + SHIFT + 6   Move window to workspace 6' \
+    'SUPER + SHIFT + 7   Move window to workspace 7' \
+    'SUPER + SHIFT + 8   Move window to workspace 8' \
+    'SUPER + SHIFT + 9   Move window to workspace 9' |
+    rofi -dmenu -i -matching fuzzy -no-custom \
+        -p "Keyboard Shortcuts" \
+        -hover-select \
+        -theme-str "$MENU_STYLE")
+
+[ -z "$choice" ] && exit 0
+
+case "$choice" in
+    *"SUPER + SPACE"*)
+        ~/.local/bin/toggle-appmenu.sh
+        ;;
+    *"SUPER + Q"*)
+        kitty
+        ;;
+    *"SUPER + E"*)
+        xdg-open "$HOME"
+        ;;
+    *"SUPER + I"*)
+        qs -c nexus-settings
+        ;;
+    *"SUPER + R"*)
+        hyprlauncher
+        ;;
+    *"SUPER + M"*)
+        ~/.local/bin/session-menu
+        ;;
+    *"SUPER + F"*)
+        hyprctl dispatch fullscreen
+        ;;
+    *"SUPER + T"*)
+        hyprctl eval 'toggle_workspace_floating()'
+        ;;
+    *"SUPER + V"*)
+        hyprctl dispatch togglefloating
+        ;;
+    *"SUPER + C"*|*"ALT + F4"*)
+        hyprctl kill
+        ;;
+    *"SUPER + P"*)
+        hyprctl dispatch pseudo
+        ;;
+    *"SUPER + J"*)
+        hyprctl dispatch togglesplit
+        ;;
+    *"SUPER + LEFT"*)
+        hyprctl dispatch movefocus l
+        ;;
+    *"SUPER + RIGHT"*)
+        hyprctl dispatch movefocus r
+        ;;
+    *"SUPER + UP"*)
+        hyprctl dispatch movefocus u
+        ;;
+    *"SUPER + DOWN"*)
+        hyprctl dispatch movefocus d
+        ;;
+    *"SUPER + SHIFT + X"*)
+        hyprctl dispatch movetoworkspace special:magic
+        ;;
+    *"SUPER + S"*)
+        hyprctl dispatch togglespecialworkspace magic
+        ;;
+    *"SUPER + SHIFT + S"*)
+        geometry=$(slurp) || exit 0
+        [ -n "$geometry" ] && grim -g "$geometry" - | wl-copy
+        ;;
+    *"SUPER + SHIFT + "[1-9]*)
+        number="${choice#*workspace }"
+        [[ "$number" =~ ^[1-9]$ ]] && hyprctl dispatch movetoworkspace "$number"
+        ;;
+    *"SUPER + "[1-9]*)
+        number="${choice#*workspace }"
+        [[ "$number" =~ ^[1-9]$ ]] && hyprctl dispatch workspace "$number"
+        ;;
+esac

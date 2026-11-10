@@ -1,0 +1,207 @@
+* {
+    font-family: "Noto Sans", sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    border: none;
+    border-radius: 0;
+    min-height: 0;
+}
+
+window#waybar {
+    background: transparent;
+    color: #e6eaf0;
+}
+
+.modules-left,
+.modules-center,
+.modules-right {
+    background: rgba(18, 22, 30, 0.45);
+    border: 1px solid rgba(160, 195, 225, 0.32);
+    border-radius: 10px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.13),
+                0 3px 12px rgba(0, 0, 0, 0.18);
+    padding: 0 10px;
+}
+
+#workspaces button {
+    color: #8995a8;
+    padding: 0 10px;
+    border-radius: 7px;
+    margin: 5px 2px;
+}
+
+#workspaces button.active {
+    color: #ffffff;
+    background: rgba(65, 145, 210, 0.35);
+}
+
+#workspaces button:hover {
+    background: rgba(100, 150, 200, 0.25);
+}
+
+#window {
+    color: #b8c5d6;
+}
+
+#cpu,
+#memory,
+#pulseaudio,
+#network,
+#clock,
+#tray {
+    padding: 0 9px;
+    color: #dce5f0;
+}
+
+#clock {
+    color: #8fcaff;
+    font-weight: 600;
+}
+
+#pulseaudio.muted {
+    color: #e08080;
+}
+
+
+/* Applications launcher */
+#custom-launcher {
+    color: #ffffff;
+    padding: 0 12px;
+    margin: 5px 2px;
+    border-radius: 7px;
+}
+
+#custom-launcher:hover {
+    background: rgba(100, 150, 200, 0.25);
+}
+
+
+/* Arch Linux launcher button */
+#custom-launcher {
+    font-family: "Symbols Nerd Font";
+    font-size: 21px;
+    color: #1793d1;
+    padding: 0 12px;
+    margin: 5px 2px;
+    border-radius: 7px;
+}
+
+#custom-launcher:hover {
+    background: rgba(100, 150, 200, 0.25);
+}
+
+
+/* Applications grid button */
+#custom-appmenu {
+    font-family: "Noto Sans Mono";
+    font-size: 19px;
+    color: #e6eaf0;
+    padding: 0 12px;
+    margin: 5px 2px;
+    border-radius: 7px;
+}
+
+#custom-appmenu:hover {
+    background: rgba(100, 150, 200, 0.25);
+}
+
+/* Larger network and volume icons */
+#network,
+#pulseaudio {
+    font-size: 19px;
+    padding: 0 10px;
+}
+
+
+/* Compact right-side status controls */
+.modules-right {
+    padding-left: 6px;
+    padding-right: 6px;
+}
+
+#pulseaudio,
+#network,
+#clock,
+#tray,
+#custom-background-apps {
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+#network,
+#pulseaudio {
+    font-size: 19px;
+}
+
+/* Background applications dropdown arrow */
+#custom-background-apps {
+    font-family: "Symbols Nerd Font";
+    font-size: 25px;
+    color: #dce5f0;
+    padding: 0 5px;
+}
+
+#custom-background-apps:hover {
+    color: #ffffff;
+    background: rgba(100, 150, 200, 0.25);
+    border-radius: 7px;
+}
+
+/* Unified left launcher buttons */
+#custom-launcher,
+#custom-appmenu,
+#custom-shortcuts {
+    padding-left: 6px;
+    padding-right: 6px;
+    margin-left: 1px;
+    margin-right: 1px;
+    border-radius: 7px;
+}
+
+/* Keyboard shortcuts icon */
+#custom-shortcuts {
+    font-family: "Symbols Nerd Font";
+    font-size: 20px;
+    color: #e6eaf0;
+    padding-top: 2px;
+}
+
+#custom-shortcuts:hover {
+    background: rgba(100, 150, 200, 0.25);
+}
+
+/* Fine-tune keyboard icon vertical alignment */
+#custom-shortcuts {
+    padding-top: 0;
+    margin-top: -3px;
+}
+
+/* Final launcher alignment and spacing */
+#custom-appmenu,
+#custom-shortcuts {
+    margin-top: 6px;
+    padding-top: 1px;
+}
+
+#custom-launcher,
+#custom-appmenu,
+#custom-shortcuts {
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+
+#custom-shortcuts {
+    margin-top: 4px;
+}
+
+#custom-shortcuts {
+    margin-top: 2px;
+    padding-top: 0;
+}
+
+#custom-shortcuts {
+    margin-top: 2px;
+    padding-top: 0;
+}

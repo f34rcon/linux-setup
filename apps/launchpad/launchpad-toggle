@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+DIR="$HOME/.local/share/launchpad"
+
+if qs -p "$DIR" ipc call launchpad toggle >/dev/null 2>&1; then
+    exit 0
+fi
+
+qs -n -p "$DIR" --daemonize
+for _ in $(seq 1 30); do
+    sleep 0.1
+    qs -p "$DIR" ipc call launchpad show >/dev/null 2>&1 && exit 0
+done

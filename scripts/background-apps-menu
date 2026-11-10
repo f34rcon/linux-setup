@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+
+MENU_STYLE='
+window {
+    width: 190px;
+}
+mainbox {
+    children: [listview];
+    padding: 4px;
+}
+listview {
+    lines: 2;
+    fixed-height: false;
+    scrollbar: false;
+}
+element {
+    height: 38px;
+    padding: 6px 10px;
+    border-radius: 7px;
+}
+element selected {
+    background-image: linear-gradient(to right, rgba(40,120,210,35%), rgba(0,210,220,18%));
+    border: 1px solid;
+    border-color: rgba(90,190,255,45%);
+    text-color: #ffffff;
+}'
+
+MENU_POSITION=(-location 3 -xoffset 205 -yoffset 48 \
+    -hover-select -me-select-entry "" -me-accept-entry MousePrimary)
+
+choice=$(printf '%s\n' 'Discord' 'Steam' |
+    rofi -dmenu -i -no-custom "${MENU_POSITION[@]}" \
+    -theme-str "$MENU_STYLE")
+
+case "$choice" in
+    Discord) /usr/bin/discord --url -- ;;
+    Steam)   /usr/bin/steam ;;
+esac

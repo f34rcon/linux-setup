@@ -1,0 +1,18 @@
+#!/bin/sh
+
+if ! waypaper-daemon status >/dev/null 2>&1; then
+    nohup waypaper-daemon start >>/tmp/waypaper-daemon-startup.log 2>&1 </dev/null &
+fi
+
+i=0
+while [ "$i" -lt 30 ]; do
+    if waypaper-daemon status >/dev/null 2>&1; then
+        waypaper-daemon playlist start 1 --monitors DP-2,DP-3
+        exit $?
+    fi
+    sleep 1
+    i=$((i + 1))
+done
+
+echo "Waypaper Engine daemon failed to start" >&2
+exit 1

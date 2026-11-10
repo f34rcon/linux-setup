@@ -1,0 +1,102 @@
+{
+    "layer": "top",
+    "position": "top",
+    "height": 38,
+    "spacing": 6,
+    "margin-top": 8,
+    "margin-left": 10,
+    "margin-right": 10,
+
+    "output": [
+        "DP-2",
+        "DP-3"
+    ],
+
+    "modules-left": [
+        "custom/launcher",
+        "custom/appmenu",
+        "custom/shortcuts"
+    ],
+
+    "modules-center": [
+        "hyprland/window"
+    ],
+
+    "modules-right": [
+        "tray",
+        "pulseaudio",
+        "network",
+        "clock"
+    ],
+
+    "custom/launcher": {
+        "format": "",
+        "tooltip": false,
+        "on-click": "~/.local/bin/session-menu"
+    },
+
+    "custom/appmenu": {
+        "format": "⠿",
+        "tooltip": "Applications",
+        "on-click": "rofi -show drun -click-to-exit"
+    },
+
+    "custom/shortcuts": {
+        "format": "󰌌",
+        "tooltip": "Keyboard Shortcuts",
+        "on-click": "~/.local/bin/keyboard-shortcuts-menu"
+    },
+
+    "hyprland/workspaces": {
+        "format": "{name}",
+        "on-click": "activate",
+        "sort-by-number": true,
+        "all-outputs": false
+    },
+
+    "hyprland/window": {
+        "format": "{}",
+        "max-length": 50,
+        "separate-outputs": true
+    },
+
+    "cpu": {
+        "format": "CPU {usage}%",
+        "interval": 2,
+        "tooltip": true
+    },
+
+    "memory": {
+        "format": "RAM {percentage}%",
+        "interval": 5,
+        "tooltip": true
+    },
+
+    "pulseaudio": {
+        "format": "{icon}",
+        "format-muted": "󰝟",
+        "format-icons": {
+            "default": ["󰕿", "󰖀", "󰕾"]
+        },
+        "on-click": "pavucontrol",
+        "tooltip": true
+    },
+
+    "network": {
+        "format-wifi": "󰤨",
+        "format-ethernet": "󰈀",
+        "format-disconnected": "󰤭",
+        "tooltip": true
+    },
+
+    "clock": {
+        "format": "{:%a %b %d  %I:%M %p}",
+        "tooltip": true
+    },
+
+    "tray": {
+        "icon-size": 18,
+        "spacing": 5,
+        "ignore-list": ["discord", "steam"]
+    },
+}

@@ -1,0 +1,441 @@
+#!/usr/bin/env python3
+"""WP Export - export Wallpaper Engine wallpapers to MP4.
+
+video type : remuxed/transcoded with ffmpeg
+scene type : rendered off-screen by linux-wallpaperengine inside Xvfb and
+             recorded with ffmpeg (x11grab)
+
+Deps (Arch/CachyOS):
+  required : sudo pacman -S python-pyqt6 ffmpeg
+  scenes   : sudo pacman -S xorg-server-xvfb   +   linux-wallpaperengine (AUR)
+"""
+import json
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+from PyQt6.QtCore import QProcess, QProcessEnvironment, QSettings, Qt, QTimer
+from PyQt6.QtWidgets import (
+    QAbstractItemView, QApplication, QCheckBox, QComboBox, QFileDialog,
+    QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem,
+    QProgressBar, QPushButton, QSpinBox, QVBoxLayout, QWidget,
+)
+
+HOME = Path.home()
+LOG = HOME / ".cache" / "wpexport.log"
+WARMUP = 8      # seconds to let a scene load before recording starts
+FPS = 30
+GUESSES = [
+    HOME / ".local/share/Steam/steamapps/workshop/content/431960",
+    HOME / ".steam/steam/steamapps/workshop/content/431960",
+    HOME / ".var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/workshop/content/431960",
+]
+HINTS = {
+    "linux-wallpaperengine": "linux-wallpaperengine (AUR)",
+    "Xvfb": "Xvfb (pacman -S xorg-server-xvfb)",
+}
+
+
+def log(text: str):
+    try:
+        LOG.parent.mkdir(parents=True, exist_ok=True)
+        with open(LOG, "a", encoding="utf-8") as f:
+            f.write(text if text.endswith("\n") else text + "\n")
+    except OSError:
+        pass
+
+
+def find_items(folder: Path):
+    """Accepts the 431960 folder, a workshop 'content' folder, or one item folder."""
+    if (folder / "431960").is_dir():
+        folder = folder / "431960"
+    dirs = [folder] if (folder / "project.json").is_file() else sorted(
+        d for d in folder.glob("*") if d.is_dir())
+    items = []
+    for d in dirs:
+        try:
+            meta = json.loads((d / "project.json").read_text(encoding="utf-8-sig"))
+        except (OSError, ValueError):
+            continue
+        wtype = str(meta.get("type", "unknown")).lower()
+        video = d / meta["file"] if meta.get("file") else None
+        kind = None
+        if wtype == "video" and video and video.is_file():
+            kind = "video"
+        elif wtype == "scene":
+            kind = "scene"
+        items.append({"title": meta.get("title", d.name), "wid": d.name,
+                      "type": wtype, "kind": kind, "path": video if kind == "video" else d})
+    return items
+
+
+def find_assets(folder: Path):
+    """Locate Wallpaper Engine's assets dir (needed to render scenes)."""
+    steamapps = [p for p in [folder, *folder.parents] if p.name == "steamapps"]
+    steamapps += [g.parents[2] for g in GUESSES]
+    for sa in steamapps:
+        a = sa / "common/wallpaper_engine/assets"
+        if a.is_dir():
+            return a
+    return None
+
+
+def is_h264_mp4(p: Path) -> bool:
+    if p.suffix.lower() != ".mp4":
+        return False
+    try:
+        r = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+             "stream=codec_name", "-of", "csv=p=0", str(p)],
+            capture_output=True, text=True, timeout=15)
+        return r.stdout.strip() == "h264"
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
+def duration(p: Path) -> float:
+    try:
+        r = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "csv=p=0", str(p)], capture_output=True, text=True, timeout=15)
+        return float(r.stdout.strip())
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return 0.0
+
+
+class FolderRow(QHBoxLayout):
+    def __init__(self, label, value, on_change=None):
+        super().__init__()
+        self.edit = QLineEdit(value)
+        btn = QPushButton("Browse…")
+        btn.clicked.connect(self.pick)
+        self.on_change = on_change
+        self.edit.editingFinished.connect(lambda: on_change and on_change())
+        lab = QLabel(label)
+        lab.setFixedWidth(110)
+        for w in (lab, self.edit, btn):
+            self.addWidget(w)
+
+    def pick(self):
+        d = QFileDialog.getExistingDirectory(None, "Select folder", self.edit.text())
+        if d:
+            self.edit.setText(d)
+            if self.on_change:
+                self.on_change()
+
+    def path(self):
+        return Path(self.edit.text()).expanduser()
+
+
+class Main(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("WP Export")
+        self.resize(580, 520)
+        self.cfg = QSettings("wpexport", "wpexport")
+        self.queue, self.job = [], None
+        self.proc = self.xvfb = self.wp = None
+        self.stage, self.display = None, None
+        self.busy = self.aborted = self.wp_crashed = False
+        self.total = self.idx = self.ok = self.fail = 0
+        self.dur = 0.0
+        self.warm = QTimer(self)
+        self.warm.setSingleShot(True)
+        self.warm.timeout.connect(self.start_capture)
+
+        guess = next((str(g) for g in GUESSES if g.is_dir()), "")
+        self.src = FolderRow("Workshop folder:", self.cfg.value("src", guess), self.load)
+        self.dst = FolderRow("Save to:", self.cfg.value("dst", str(HOME / "Videos/Wallpapers")))
+        self.list = QListWidget()
+        self.list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+
+        self.res = QComboBox()
+        self.res.addItem("720p", (1280, 720))
+        self.res.addItem("1080p", (1920, 1080))
+        self.secs = QSpinBox()
+        self.secs.setRange(3, 600)
+        self.secs.setValue(15)
+        self.secs.setSuffix(" s")
+        self.res.setToolTip("Scene recording resolution (720p is smoother on weak GPUs)")
+        self.secs.setToolTip("How long to record each scene")
+        scene_row = QHBoxLayout()
+        for w in (QLabel("Scenes:"), self.res, QLabel("length"), self.secs):
+            scene_row.addWidget(w)
+        scene_row.addStretch()
+
+        self.mute = QCheckBox("Remove audio (videos)")
+        self.mute.setChecked(True)
+        self.go = QPushButton("Export selected")
+        self.go.clicked.connect(self.toggle)
+        bottom = QHBoxLayout()
+        bottom.addWidget(self.mute)
+        bottom.addStretch()
+        bottom.addWidget(self.go)
+
+        self.bar = QProgressBar()
+        self.bar.setRange(0, 1000)
+        self.status = QLabel("")
+        self.status.setWordWrap(True)
+
+        lay = QVBoxLayout(self)
+        lay.addLayout(self.src)
+        lay.addLayout(self.dst)
+        lay.addWidget(self.list)
+        lay.addLayout(scene_row)
+        lay.addLayout(bottom)
+        lay.addWidget(self.bar)
+        lay.addWidget(self.status)
+        self.load()
+
+    # ----- list -----
+    def load(self):
+        self.cfg.setValue("src", self.src.edit.text())
+        self.list.clear()
+        folder = self.src.path()
+        if not folder.is_dir():
+            self.status.setText("Pick your Steam workshop folder.")
+            return
+        items = find_items(folder)
+        for j in items:
+            it = QListWidgetItem(f"{j['title']}  ({j['wid']})  [{j['type']}]")
+            if j["kind"]:
+                it.setData(Qt.ItemDataRole.UserRole, j)
+            else:
+                it.setFlags(Qt.ItemFlag.NoItemFlags)  # web/application: greyed out
+            self.list.addItem(it)
+        n = sum(1 for j in items if j["kind"])
+        if not items:
+            self.status.setText("No wallpapers (project.json) found in that folder.")
+        else:
+            self.status.setText(f"{len(items)} wallpapers found, {n} exportable (video + scene).")
+
+    # ----- queue control -----
+    def toggle(self):
+        self.stop() if self.busy else self.start()
+
+    def start(self):
+        sel = [i.data(Qt.ItemDataRole.UserRole) for i in self.list.selectedItems()]
+        if not sel:
+            self.status.setText("Select at least one wallpaper.")
+            return
+        if any(j["kind"] == "scene" for j in sel):
+            missing = [HINTS[t] for t in HINTS if not shutil.which(t)]
+            if missing:
+                self.status.setText("Scenes need: " + ", ".join(missing))
+                return
+        self.dst.path().mkdir(parents=True, exist_ok=True)
+        self.cfg.setValue("dst", self.dst.edit.text())
+        self.queue, self.total = sel, len(sel)
+        self.ok = self.fail = 0
+        self.busy, self.aborted = True, False
+        self.go.setText("Stop")
+        self.bar.setValue(0)
+        self.next_job()
+
+    def stop(self):
+        self.aborted = True
+        self.queue.clear()
+        self.warm.stop()
+        if self.proc is not None and self.stage in ("video", "capture"):
+            self.proc.kill()  # its finished-handler wraps up
+        else:
+            self.stage = None
+            self.kill_scene()
+            self.finish_all("Stopped.")
+
+    def closeEvent(self, e):
+        self.aborted = True
+        self.warm.stop()
+        if self.proc is not None and self.proc.state() != QProcess.ProcessState.NotRunning:
+            self.proc.kill()
+        self.kill_scene()
+        super().closeEvent(e)
+
+    def finish_all(self, msg=None):
+        if not self.busy:
+            return
+        self.busy = False
+        self.go.setText("Export selected")
+        if msg is None:
+            self.bar.setValue(1000)
+            msg = f"Done. Saved {self.ok} file(s) to {self.dst.path()}"
+            if self.fail:
+                msg += f" — {self.fail} failed (see {LOG})"
+        self.status.setText(msg)
+
+    def next_job(self):
+        if self.aborted or not self.queue:
+            return self.finish_all("Stopped." if self.aborted else None)
+        self.job = self.queue.pop(0)
+        self.idx = self.total - len(self.queue) - 1
+        name = re.sub(r"[^\w\- ]+", "", self.job["title"]).strip().replace(" ", "_")[:60] or "wallpaper"
+        self.dst_file = self.dst.path() / f"{name}_{self.job['wid']}.mp4"
+        self.wp_crashed = False
+        if self.job["kind"] == "video":
+            self.run_video()
+        else:
+            self.run_scene()
+
+    def record(self, ok):
+        self.ok += ok
+        self.fail += (not ok)
+        self.bar.setValue(int((self.idx + 1) / self.total * 1000))
+        self.next_job()
+
+    def new_ffmpeg(self, args, on_finished):
+        if self.proc is not None:
+            self.proc.deleteLater()
+        self.proc = QProcess(self)
+        self.proc.readyReadStandardOutput.connect(self.on_progress)
+        self.proc.readyReadStandardError.connect(
+            lambda p=self.proc: log(bytes(p.readAllStandardError()).decode(errors="ignore")))
+        self.proc.finished.connect(on_finished)
+        log("ffmpeg " + " ".join(args))
+        self.proc.start("ffmpeg", args)
+
+    def on_progress(self):
+        text = bytes(self.proc.readAllStandardOutput()).decode(errors="ignore")
+        for line in text.splitlines():
+            if line.startswith("out_time_us=") and self.dur > 0:
+                try:
+                    frac = min(int(line.split("=")[1]) / 1e6 / self.dur, 1.0)
+                except ValueError:
+                    continue
+                self.bar.setValue(int((self.idx + frac) / self.total * 1000))
+
+    # ----- video wallpapers -----
+    def run_video(self):
+        src, dst = self.job["path"], self.dst_file
+        self.stage = "video"
+        self.dur = duration(src)
+        args = ["-y", "-loglevel", "error", "-progress", "pipe:1", "-nostats", "-i", str(src)]
+        mute = self.mute.isChecked()
+        if is_h264_mp4(src):
+            args += ["-c:v", "copy"] + (["-an"] if mute else ["-c:a", "copy"])
+        else:
+            args += ["-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p"]
+            args += ["-an"] if mute else ["-c:a", "aac", "-b:a", "192k"]
+        args += ["-movflags", "+faststart", str(dst)]
+        self.status.setText(f"Exporting {self.idx + 1}/{self.total}: {self.job['title']}")
+        self.new_ffmpeg(args, self.video_done)
+
+    def video_done(self, code, status):
+        self.stage = None
+        if self.aborted:
+            return self.finish_all("Stopped.")
+        self.record(code == 0 and status == QProcess.ExitStatus.NormalExit)
+
+    # ----- scene wallpapers -----
+    def run_scene(self):
+        w, h = self.res.currentData()
+        self.size = (w, h)
+        self.stage, self.display = "start", None
+        self.status.setText(f"Scene {self.idx + 1}/{self.total}: starting virtual display…")
+        self.xvfb = QProcess(self)
+        self.xvfb.readyReadStandardOutput.connect(self.xvfb_out)
+        self.xvfb.finished.connect(lambda *_: self.stage == "start" and self.scene_fail("Xvfb exited unexpectedly"))
+        self.xvfb.start("Xvfb", ["-displayfd", "1", "-screen", "0", f"{w}x{h}x24", "-nolisten", "tcp"])
+
+    def xvfb_out(self):
+        if self.stage != "start":
+            return
+        m = re.match(r"\s*(\d+)", bytes(self.xvfb.readAllStandardOutput()).decode(errors="ignore"))
+        if m:
+            self.display = ":" + m.group(1)
+            self.launch_wp()
+
+    def launch_wp(self):
+        w, h = self.size
+        self.stage = "warm"
+        env = QProcessEnvironment.systemEnvironment()
+        env.remove("WAYLAND_DISPLAY")
+        env.insert("DISPLAY", self.display)
+        env.insert("XDG_SESSION_TYPE", "x11")
+        env.insert("LIBGL_ALWAYS_SOFTWARE", "1")
+        env.insert("__GLX_VENDOR_LIBRARY_NAME", "mesa")
+        args = ["--window", f"0x0x{w}x{h}", "--fps", str(FPS), "--silent"]
+        assets = find_assets(self.src.path())
+        if assets:
+            args += ["--assets-dir", str(assets)]
+        args.append(str(self.job["path"]))
+        self.wp = QProcess(self)
+        self.wp.setProcessEnvironment(env)
+        self.wp.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+        self.wp.readyRead.connect(
+            lambda p=self.wp: log(bytes(p.readAll()).decode(errors="ignore")))
+        self.wp.finished.connect(self.wp_died)
+        log(f"[{self.display}] linux-wallpaperengine " + " ".join(args))
+        self.wp.start("linux-wallpaperengine", args)
+        self.status.setText(f"Scene {self.idx + 1}/{self.total}: loading {self.job['title']}…")
+        self.warm.start(WARMUP * 1000)
+
+    def wp_died(self, *_):
+        if self.stage == "warm":
+            self.warm.stop()
+            self.scene_fail("linux-wallpaperengine exited while loading the scene")
+        elif self.stage == "capture":
+            self.wp_crashed = True
+            self.proc.kill()
+
+    def start_capture(self):
+        if self.stage != "warm":
+            return
+        self.stage = "capture"
+        w, h = self.size
+        secs = self.secs.value()
+        self.dur = float(secs)
+        args = ["-y", "-loglevel", "error", "-progress", "pipe:1", "-nostats",
+                "-f", "x11grab", "-framerate", str(FPS), "-video_size", f"{w}x{h}",
+                "-draw_mouse", "0", "-i", f"{self.display}.0", "-t", str(secs),
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
+                "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(self.dst_file)]
+        self.status.setText(f"Scene {self.idx + 1}/{self.total}: recording {self.job['title']}…")
+        self.new_ffmpeg(args, self.scene_done)
+
+    def scene_done(self, code, status):
+        self.stage = None
+        self.kill_scene()
+        if self.aborted:
+            return self.finish_all("Stopped.")
+        ok = code == 0 and status == QProcess.ExitStatus.NormalExit \
+            and not self.wp_crashed and self.dst_file.is_file()
+        if not ok:
+            log(f"Scene export failed for {self.job['title']}")
+        self.record(ok)
+
+    def scene_fail(self, msg):
+        log(msg)
+        self.stage = None
+        self.warm.stop()
+        self.kill_scene()
+        if self.aborted:
+            return self.finish_all("Stopped.")
+        self.record(False)
+
+    def kill_scene(self):
+        for attr in ("wp", "xvfb"):
+            p = getattr(self, attr)
+            if p is None:
+                continue
+            try:
+                p.finished.disconnect()
+            except TypeError:
+                pass
+            if p.state() != QProcess.ProcessState.NotRunning:
+                p.terminate()
+                if not p.waitForFinished(1500):
+                    p.kill()
+                    p.waitForFinished(500)
+            p.deleteLater()
+            setattr(self, attr, None)
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    app.setApplicationName("wpexport")
+    app.setDesktopFileName("wpexport")
+    w = Main()
+    w.show()
+    sys.exit(app.exec())
