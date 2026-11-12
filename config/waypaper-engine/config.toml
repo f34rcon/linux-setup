@@ -17,7 +17,6 @@ theme = 'kolision-raw'
 
 [backend]
 selection_mode = 'auto'
-type = 'awww'
 
 [backend.auto_priorities]
 image = ['hyprpaper', 'awww', 'swaybg', 'feh', 'wal-qt']
@@ -78,7 +77,6 @@ parallax_step_percent = 5
 parallax_workspace_chunk_size = 10
 parallax_zoom = 120
 request_timeout_ms = 1500
-socket_path = '/run/user/1000/wal-qt.sock'
 transition = 'none'
 transition_angle_deg = 0
 transition_bezier = '0.54,0,0.34,0.99'
@@ -90,18 +88,13 @@ video_audio_default = false
 
 [daemon]
 compositor = 'auto'
-database_dir = '/home/pilot/.local/share/waypaper-engine/db'
-images_dir = '/home/pilot/.local/share/waypaper-engine/images'
-log_file = '/home/pilot/.local/share/waypaper-engine/daemon.log'
 log_level = 'info'
 log_max_backups = 3
 log_max_size_mb = 10
-socket_path = '/run/user/1000/waypaper-engine.sock'
-thumbnails_dir = '/home/pilot/.cache/waypaper-engine/thumbnails'
+
 
 [monitors]
-image_set_type = 'individual'
-selected_monitors = ['DP-2']
+image_set_type = 'clone'
 
 [wallhaven]
 api_key = ''

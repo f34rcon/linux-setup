@@ -38,6 +38,87 @@ PanelWindow {
   readonly property bool vertical: position === "left" || position === "right"
   readonly property bool fullLength: settings.fullLength === undefined ? false : settings.fullLength
   readonly property var pinned: settings.pinned || []
+  readonly property var applications: DesktopEntries.applications.values || []
+  readonly property var toplevels: ToplevelManager.toplevels.values || []
+
+  function normalizedId(value) {
+    return String(value || "").toLowerCase().replace(/\.desktop$/, "")
+  }
+
+  function entryMatchesToplevel(entry, toplevel, desktopId) {
+    if (!toplevel) return false
+    var appId = normalizedId(toplevel.appId)
+    if (!appId) return false
+
+    var ids = [desktopId]
+    if (entry) ids.push(entry.id, entry.startupClass)
+
+    for (var i = 0; i < ids.length; ++i) {
+      var id = normalizedId(ids[i])
+      if (id && appId === id) return true
+    }
+
+    if (!entry || !entry.command) return false
+    for (var j = 0; j < entry.command.length; ++j) {
+      var match = String(entry.command[j]).match(/https?:\/\/[^?#\s]+/i)
+      if (!match) continue
+
+      var url = match[0].replace(/^https?:\/\//i, "").replace(/\/$/, "")
+      try {
+        url = decodeURIComponent(url)
+      } catch (error) {
+        // Keep the encoded URL if decoding fails.
+      }
+
+      var webId = url.toLowerCase().replace(/[^a-z0-9]/g, "")
+      if (webId.length >= 6
+          && appId.replace(/[^a-z0-9]/g, "").indexOf(webId) >= 0)
+        return true
+    }
+
+    return false
+  }
+
+  function isPinnedToplevel(toplevel) {
+    for (var i = 0; i < pinned.length; ++i) {
+      var id = String(pinned[i])
+      if (normalizedId(toplevel.appId) === normalizedId(id))
+        return true
+
+      var pinnedEntry = DesktopEntries.byId(id)
+      if (entryMatchesToplevel(pinnedEntry, toplevel, id))
+        return true
+    }
+    return false
+  }
+
+  readonly property var runningApps: {
+    var appRevision = applications.length
+    var windowRevision = toplevels.length
+    var pinnedRevision = pinned.length
+    var result = []
+    var seen = []
+
+    for (var i = 0; i < toplevels.length; ++i) {
+      var window = toplevels[i]
+      if (!window || isPinnedToplevel(window)) continue
+
+      for (var j = 0; j < applications.length; ++j) {
+        var entry = applications[j]
+        if (!entry || !entry.id) continue
+        if (!entryMatchesToplevel(entry, window, entry.id)) continue
+
+        var key = normalizedId(entry.id)
+        if (!key || seen.indexOf(key) >= 0) break
+
+        seen.push(key)
+        result.push({ entry: entry, toplevel: window })
+        break
+      }
+    }
+
+    return result
+  }
   readonly property int itemSize: iconSize + 14
   readonly property int reservedSize: iconSize + 24 + edgeMargin
   readonly property int mainPadding: 10
@@ -187,10 +268,9 @@ PanelWindow {
         ? (parent.height - implicitHeight) / 2
         : root.position === "top" ? 6 : parent.height - implicitHeight - 6
 
-      // Keep one spare cell so a settings reload cannot transiently reduce the
-      // grid capacity before the repeater updates its delegates.
-      columns: root.vertical ? 1 : Math.max(1, root.pinned.length + 1)
-      rows: root.vertical ? Math.max(1, root.pinned.length + 1) : 1
+      // Pinned apps, separator, then one icon per running unpinned app.
+      columns: root.vertical ? 1 : Math.max(1, root.pinned.length + 1 + root.runningApps.length)
+      rows: root.vertical ? Math.max(1, root.pinned.length + 1 + root.runningApps.length) : 1
 
       Repeater {
         model: root.pinned
@@ -220,6 +300,41 @@ PanelWindow {
           onAddApplicationRequested: appPicker.open()
           onRemoveRequested: desktopId => root.unpinRequested(desktopId)
           onAutoHideToggled: enabled => root.autoHideRequested(enabled)
+          onContextMenuVisibilityChanged: visible => {
+            root.openMenuCount = Math.max(0, root.openMenuCount + (visible ? 1 : -1))
+          }
+        }
+      }
+
+      // Permanent divider between pinned and currently running applications.
+      Item {
+        width: root.vertical ? root.itemSize + 6 : 16
+        height: root.vertical ? 16 : root.itemSize + 6
+
+        Rectangle {
+          anchors.centerIn: parent
+          width: root.vertical ? 28 : 1
+          height: root.vertical ? 1 : 28
+          radius: 1
+          color: Qt.rgba(1, 1, 1, 0.25)
+        }
+      }
+
+      Repeater {
+        model: root.runningApps
+
+        RunningDockItem {
+          required property var modelData
+
+          entry: modelData.entry
+          toplevel: modelData.toplevel
+          slotSize: root.itemSize
+          iconSize: root.iconSize
+          magnification: root.magnification
+          magnificationRadius: root.magnificationRadius
+          pointerPosition: root.pointerPosition
+          position: root.position
+          vertical: root.vertical
           onContextMenuVisibilityChanged: visible => {
             root.openMenuCount = Math.max(0, root.openMenuCount + (visible ? 1 : -1))
           }

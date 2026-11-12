@@ -53,7 +53,7 @@ hl.monitor({
 
 -- Set programs that you use
 local terminal = "kitty"
-local fileManager = "dolphin"
+local fileManager = "thunar"
 local menu = "hyprlauncher"
 
 
@@ -61,11 +61,12 @@ local menu = "hyprlauncher"
 ---- AUTOSTART ----
 -------------------
 hl.on("hyprland.start", function ()
-	hl.exec_cmd("hyprpaper")
-	hl.exec_cmd("/home/pilot/.local/bin/start-live-wallpapers")
-hl.exec_cmd("qs -n -p /home/pilot/.local/share/launchpad --daemonize")
-hl.exec_cmd("qs -n -p /home/pilot/.local/share/hyprland-dock --daemonize")
-	hl.exec_cmd("waybar")
+    hl.exec_cmd("$HOME/.local/bin/start-live-wallpapers")
+    hl.exec_cmd("qs -n -p $HOME/.local/share/launchpad --daemonize")
+    hl.exec_cmd("qs -n -p $HOME/.local/share/hyprland-dock --daemonize")
+    hl.exec_cmd("systemctl --user start dunst.service")
+    hl.exec_cmd("waybar")
+    hl.exec_cmd("bash -c 'sleep 3; exec /usr/bin/jamesdsp --tray'")
 end)
 
 -- See https://wiki.hypr.land/configuring/core/autostart/
@@ -88,7 +89,6 @@ end)
 
 hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
-hl.env("QT_QPA_PLATFORMTHEME", "kde")
 
 -----------------------
 ----- PERMISSIONS -----
@@ -281,12 +281,6 @@ hl.gesture({
     action = "workspace"
 })
 
--- Example per-device config
--- See https://wiki.hypr.land/configuring/core/devices/ for more
-hl.device({
-    name        = "epic-mouse-v1",
-    sensitivity = -0.5,
-})
 
 
 ---------------------
@@ -400,7 +394,12 @@ hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true })
 hl.bind(mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
 -- Move windows with middle mouse button + drag
-hl.bind("mouse:274", hl.dsp.window.drag(), { mouse = true })
+hl.bind("mouse:274", function()
+    local win = hl.get_active_window()
+    if win ~= nil and win.fullscreen ~= 2 then
+        hl.dispatch(hl.dsp.window.drag())
+    end
+end, { mouse = true })
 hl.bind("SUPER + mouse:274", hl.dsp.window.close(), { mouse = true })
 hl.bind("mouse:272", hl.dsp.exec_cmd("~/.local/bin/rofi-click-to-close.sh"), {
     mouse = true,
@@ -408,9 +407,9 @@ hl.bind("mouse:272", hl.dsp.exec_cmd("~/.local/bin/rofi-click-to-close.sh"), {
 })
 
 -- Laptop multimedia keys for volume and LCD brightness
-hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+"), { locked = true, repeating = true })
-hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"),      { locked = true, repeating = true })
-hl.bind("XF86AudioMute",        hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"),     { locked = true, repeating = true })
+hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("~/.local/bin/focused-app-volume.sh up"),   { locked = true, repeating = true })
+hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("~/.local/bin/focused-app-volume.sh down"), { locked = true, repeating = true })
+hl.bind("XF86AudioMute",        hl.dsp.exec_cmd("~/.local/bin/focused-app-volume.sh mute"), { locked = true, repeating = true })
 hl.bind("XF86AudioMicMute",     hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"),   { locked = true, repeating = true })
 hl.bind("XF86MonBrightnessUp",  hl.dsp.exec_cmd("brightnessctl -e4 -n2 set 5%+"),                  { locked = true, repeating = true })
 hl.bind("XF86MonBrightnessDown",hl.dsp.exec_cmd("brightnessctl -e4 -n2 set 5%-"),                  { locked = true, repeating = true })
@@ -488,12 +487,7 @@ hl.window_rule({
     opacity = "0.8 override 0.8 override 0.8 override",
 })
 
--- Keep Dolphin readable
-hl.window_rule({
-    name = "dolphin-readable-opacity",
-    match = { class = "^org\\.kde\\.dolphin$" },
-    opacity = "0.95 override 0.95 override 0.95 override",
-})
+
 
 -- Keep Brave fully opaque
 hl.window_rule({
@@ -509,10 +503,20 @@ hl.window_rule({
     opacity = "1.0 override 1.0 override 1.0 override",
 })
 
--- Nexus Settings launcher (added by Nexus Settings installer)
-hl.bind("SUPER + I", hl.dsp.exec_cmd("qs -c nexus-settings"), {
-    description = "Open Nexus Settings"
+-- Keep KJK fully opaque
+hl.window_rule({
+    name = "kjk-full-opacity",
+    match = { title = "^kjk$" },
+    opacity = "1.0 override 1.0 override 1.0 override",
 })
+
+-- Make every fullscreen window fully opaque
+hl.window_rule({
+    name = "fullscreen-full-opacity",
+    match = { fullscreen = true },
+    opacity = "1.0 override 1.0 override 1.0 override",
+})
+
 
 -- Launchpad frosted glass
 hl.layer_rule({
@@ -520,4 +524,11 @@ hl.layer_rule({
     match = { namespace = "launchpad" },
     blur = true,
     ignore_alpha = 0.3,
+})
+
+-- Logitech G502 HERO
+hl.device({
+    name = "logitech-g502-hero-gaming-mouse",
+    accel_profile = "flat",
+    sensitivity = -0.6,
 })

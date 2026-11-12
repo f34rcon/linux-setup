@@ -1,34 +1,50 @@
-# CachyOS Hyprland Desktop Setup
+# Windows 11 + Arch Linux Desktop Setup
 
-My personal CachyOS + Hyprland desktop configuration and custom applications.
+Personal desktop configuration, custom applications, scripts, and
+restoration documentation for this PC.
 
-This repository preserves the configuration, scripts, and source files used by my desktop. It is intended as a backup and restoration reference, not an automatic installer.
+The current configuration was developed on CachyOS with Hyprland.
+The target rebuild is Windows 11 + Arch Linux dual boot.
+
+This repository is a backup and restoration reference, not an
+automatic installer.
+
+## Rebuild Documentation
+
+See [docs/ARCH-RESTORE.md](docs/ARCH-RESTORE.md) for the complete
+hardware inventory, storage plan, rebuild checklist, and restoration
+instructions.
+
+The restoration guide covers both operating systems and records
+important installation and configuration commands.
 
 ## Repository Structure
 
-- `apps/hyprland-dock/` — Quickshell dock source
-- `apps/launchpad/` — Claude-created Launchpad application
-- `config/hypr/` — Hyprland, Hyprlock, and Hyprpaper
-- `config/hyprland-dock/` — Dock settings
-- `config/kitty/` — Kitty terminal configuration
-- `config/waybar/` — Waybar configuration and styling
-- `config/waypaper-engine/` — Wallpaper Engine settings
-- `scripts/` — Custom desktop scripts
+- `apps/` — Custom desktop applications and their source files
+- `config/` — Desktop and application configuration
+- `docs/` — Installation and restoration documentation
+- `scripts/` — Custom desktop scripts and utilities
+- `systemd/` — System and user service configuration
 
 ## Included Components
 
 ### Desktop
+
 - Hyprland configuration
 - Hyprlock lock screen
-- Hyprpaper configuration
-- Waybar configuration and CSS
+- Waybar configuration and styling
 - Kitty terminal configuration
+- Waypaper Engine configuration
 
 ### Custom Applications
-- Launchpad — Quickshell-based application launcher
-- Hyprland Dock — Quickshell dock, including QML components, installer, and uninstaller
 
-### Scripts
+- Launchpad — Quickshell-based application launcher
+- Hyprland Dock — Quickshell dock and QML components
+- Volume OSD — Custom focused-application volume display
+- Star Citizen application integration
+
+### Scripts and Utilities
+
 - Background applications menu
 - Keyboard shortcuts menu
 - Session menu
@@ -37,26 +53,29 @@ This repository preserves the configuration, scripts, and source files used by m
 - Hyprland dock launcher
 - Waypaper Engine startup helper
 - Wallpaper Engine export utility
+- Live wallpaper restoration utility
+- Focused-application volume controls
+- Focused-audio diagnostic utility
 
 ## Restoration Notes
 
-These files reflect the original machine and may need adjustments before use elsewhere.
-
-- Some configurations reference `/home/pilot` directly.
-- Hyprpaper references `/home/pilot/Pictures/Screenshot_20261108_212013.png`, which is not included.
-- Waypaper Engine uses machine-specific database, image, log, thumbnail, and socket paths.
-- Wallpaper startup references monitors `DP-2` and `DP-3`; monitor names may differ on another system.
-- The desktop uses Hyprland, Quickshell, Waybar, Kitty, Rofi, Hyprlock, Hyprpaper, and Waypaper Engine.
-- Launchpad and the dock require Quickshell.
-- Xodus Nexus itself is not included; its installed application must be restored separately.
+- Configurations should be reviewed before installation on a new system.
+- Machine-specific paths and hardware identifiers must be verified.
+- Monitor names may differ between installations.
+- Quickshell applications require Quickshell.
+- Waypaper Engine requires its application dependencies and a compatible
+  wallpaper backend.
+- Downloaded wallpaper libraries are backed up separately and are not
+  stored in this repository.
 
 ## Backup Policy
 
 Included:
-- Active configuration files
+- Desktop and application configuration files
 - Custom application source files
-- Custom scripts
-- Dock and Launchpad assets
+- Custom scripts and utilities
+- Restoration documentation
+- System and user service configuration
 
 Excluded:
 - Historical configuration backups
@@ -66,28 +85,35 @@ Excluded:
 - Third-party application binaries
 - Private keys, credentials, and tokens
 
-## License
+## Onboard Microphone Gain Persistence
 
-The Hyprland Dock retains its original included license. Other personal configuration and scripts are provided as-is.
+Preserves onboard Realtek ALC897 microphone hardware gain across boots
+and WirePlumber restarts.
 
-### Onboard Microphone Gain Persistence
-
-Preserves onboard Realtek ALC897 microphone hardware gain across boots and WirePlumber restarts.
-
-- `systemd/alsa-restore.service.d/no-shutdown-overwrite.conf` saves the onboard ALSA card using its stable ID, `Generic_1`.
-- `systemd/user/restore-mic-gain.service` reapplies Capture gain 57 (+25.50 dB) after WirePlumber starts or restarts.
+- `systemd/alsa-restore.service.d/no-shutdown-overwrite.conf` saves the
+  onboard ALSA card using its stable ID, `Generic_1`.
+- `systemd/user/restore-mic-gain.service` reapplies Capture gain 57
+  (+25.50 dB) after WirePlumber starts or restarts.
 - Rear Mic Boost remains at +20.00 dB.
 
-#### Installation
+### Installation
 
 Install the system override:
-`sudo install -Dm644 systemd/alsa-restore.service.d/no-shutdown-overwrite.conf /etc/systemd/system/alsa-restore.service.d/no-shutdown-overwrite.conf`
-`sudo systemctl daemon-reload`
+
+    sudo install -Dm644 systemd/alsa-restore.service.d/no-shutdown-overwrite.conf /etc/systemd/system/alsa-restore.service.d/no-shutdown-overwrite.conf
+    sudo systemctl daemon-reload
 
 Install the user service:
-`mkdir -p ~/.config/systemd/user`
-`install -Dm644 systemd/user/restore-mic-gain.service ~/.config/systemd/user/restore-mic-gain.service`
-`systemctl --user daemon-reload`
-`systemctl --user enable restore-mic-gain.service`
 
-The local ALSA state file `/var/lib/alsa/asound.state` is intentionally excluded from Git.
+    mkdir -p ~/.config/systemd/user
+    install -Dm644 systemd/user/restore-mic-gain.service ~/.config/systemd/user/restore-mic-gain.service
+    systemctl --user daemon-reload
+    systemctl --user enable restore-mic-gain.service
+
+The local ALSA state file `/var/lib/alsa/asound.state` is intentionally
+excluded from Git.
+
+## License
+
+The Hyprland Dock retains its original included license. Other personal
+configuration and scripts are provided as-is.

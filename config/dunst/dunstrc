@@ -1,0 +1,13 @@
+[global]
+    width = (253, 299)
+    height = 230
+    origin = top-right
+    offset = 10x10
+
+    font = Sans 9
+    padding = 5
+    horizontal_padding = 5
+    gap_size = 5
+
+    frame_width = 1
+    separator_height = 1

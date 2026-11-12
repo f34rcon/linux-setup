@@ -7,7 +7,7 @@ fi
 i=0
 while [ "$i" -lt 30 ]; do
     if waypaper-daemon status >/dev/null 2>&1; then
-        waypaper-daemon playlist start 1 --monitors DP-2,DP-3
+        waypaper-daemon playlist start --name "Live Wallpapers"
         exit $?
     fi
     sleep 1

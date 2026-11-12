@@ -10,7 +10,7 @@
   "autoHide": false,
   "clickAction": "focus-or-launch",
   "pinned": [
-    "org.kde.dolphin",
+    "thunar",
     "launchpad",
     "brave-browser",
     "steam",

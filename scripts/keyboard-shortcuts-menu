@@ -36,7 +36,6 @@ choice=$(printf '%s\n' \
     'SUPER + SPACE       Applications menu' \
     'SUPER + Q            Open terminal' \
     'SUPER + E            File manager' \
-    'SUPER + I             System Settings' \
     'SUPER + R            Hyprlauncher' \
     'SUPER + M           Session / power menu' \
     'SUPER + F            Toggle fullscreen' \
@@ -86,10 +85,7 @@ case "$choice" in
         kitty
         ;;
     *"SUPER + E"*)
-        xdg-open "$HOME"
-        ;;
-    *"SUPER + I"*)
-        qs -c nexus-settings
+        thunar
         ;;
     *"SUPER + R"*)
         hyprlauncher

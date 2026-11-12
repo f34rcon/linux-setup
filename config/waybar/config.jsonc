@@ -7,11 +7,6 @@
     "margin-left": 10,
     "margin-right": 10,
 
-    "output": [
-        "DP-2",
-        "DP-3"
-    ],
-
     "modules-left": [
         "custom/launcher",
         "custom/appmenu",

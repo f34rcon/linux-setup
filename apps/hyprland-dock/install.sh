@@ -33,8 +33,8 @@ done
 if ! command -v qs >/dev/null 2>&1; then
   cat >&2 <<'EOF'
 Quickshell is required but `qs` was not found.
-On Arch Linux, install it with an AUR helper, for example:
-  yay -S quickshell-git
+On Arch Linux, install the official package, for example:
+  pacman -S quickshell
 EOF
   exit 1
 fi
